@@ -102,6 +102,9 @@ class PassXMPApp(QObject):
 
         self._main_window.show()
 
+        configured = bool(self.config.lightroom_path and self.config.davinci_path)
+        self._main_window.presets_view().set_folders_configured(configured)
+
         self._tray = TrayIcon()
         self._tray.show_requested.connect(self._on_show_main)
         self._tray.sync_requested.connect(self._on_tray_sync_all)
@@ -124,6 +127,9 @@ class PassXMPApp(QObject):
         self.config.lut_size = size
         self.config.auto_start = auto_start
         self.config.save()
+
+        if self._main_window:
+            self._main_window.presets_view().set_folders_configured(bool(lr and dv))
 
         if paths_changed and lr and dv:
             self._stop_watcher()
