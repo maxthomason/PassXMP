@@ -1,0 +1,29 @@
+[build-system]
+requires = ["setuptools>=68.0", "wheel"]
+build-backend = "setuptools.backends._legacy:_Backend"
+
+[project]
+name = "passxmp"
+version = "1.0.0"
+description = "Mirror Lightroom presets as DaVinci Resolve .cube LUT files"
+readme = "README.md"
+license = "MIT"
+requires-python = ">=3.11"
+authors = [
+    { name = "Maxwell Thomason" },
+]
+
+dependencies = [
+    "PyQt6>=6.5",
+    "watchdog>=3.0",
+    "numpy>=1.24",
+    "scipy>=1.10",
+    "colour-science>=0.4",
+    "Pillow>=10.0",
+]
+
+[project.scripts]
+passxmp = "src.main:main"
+
+[tool.pytest.ini_options]
+testpaths = ["tests"]
