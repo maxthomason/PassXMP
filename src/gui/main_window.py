@@ -1,179 +1,119 @@
-"""Main window showing sync status and recent activity."""
+"""Top-level window: segmented control that switches between Presets and Settings."""
 
-import time
-
+from PyQt6.QtCore import pyqtSignal
 from PyQt6.QtWidgets import (
-    QWidget, QVBoxLayout, QHBoxLayout, QLabel,
-    QPushButton, QFrame, QScrollArea, QSizePolicy,
+    QWidget, QVBoxLayout, QHBoxLayout, QStackedWidget, QPushButton,
+    QButtonGroup, QLabel,
 )
-from PyQt6.QtCore import pyqtSignal, pyqtSlot, Qt, QTimer
-from PyQt6.QtGui import QFont
+
+from ..core.file_registry import FileRegistry
+from .presets_view import PresetsView
+from .settings_view import SettingsView
 
 
-class ActivityItem(QWidget):
-    """Single activity log entry widget."""
-
-    def __init__(self, xmp_rel: str, cube_rel: str, parent=None):
-        super().__init__(parent)
-        layout = QHBoxLayout(self)
-        layout.setContentsMargins(4, 2, 4, 2)
-
-        check = QLabel("\u2713")
-        check.setStyleSheet("color: #22c55e; font-weight: bold;")
-        check.setFixedWidth(16)
-        layout.addWidget(check)
-
-        text = QLabel(f"{xmp_rel} \u2192 {cube_rel}")
-        text.setStyleSheet("color: #444; font-size: 12px;")
-        text.setWordWrap(True)
-        layout.addWidget(text, 1)
+_SEG_STYLE = """
+QPushButton { background: #e8e8ea; color: #3a3a3c; border: none;
+              padding: 4px 14px; font-size: 12px; }
+QPushButton:checked { background: #ffffff; color: #111; }
+QWidget#SegContainer { background: #e8e8ea; border-radius: 6px; padding: 2px; }
+"""
 
 
 class MainWindow(QWidget):
-    """Active sync status screen — the primary window after setup."""
+    config_changed = pyqtSignal(str, str, int, bool)
+    sync_requested = pyqtSignal(list)     # list[FileState]
+    stop_requested = pyqtSignal()
+    pause_toggled = pyqtSignal(bool)      # True = now paused
 
-    sync_all_requested = pyqtSignal()
-    settings_requested = pyqtSignal()
-
-    def __init__(self):
+    def __init__(
+        self,
+        registry: FileRegistry,
+        lr_path: str, dv_path: str,
+        lut_size: int, auto_start: bool,
+        default_lr: str, default_dv: str,
+    ) -> None:
         super().__init__()
         self.setWindowTitle("PassXMP")
-        self.setMinimumSize(480, 400)
-        self._synced_count = 0
-        self._last_sync_name = ""
-        self._last_sync_time = 0.0
-        self._init_ui()
+        self.setMinimumSize(760, 560)
 
-        # Timer to update "X min ago" display
-        self._timer = QTimer(self)
-        self._timer.timeout.connect(self._update_time_display)
-        self._timer.start(30_000)  # every 30s
+        self._presets = PresetsView(registry)
+        self._settings = SettingsView(
+            lr_path=lr_path, dv_path=dv_path,
+            lut_size=lut_size, auto_start=auto_start,
+            default_lr=default_lr, default_dv=default_dv,
+        )
 
-    def _init_ui(self) -> None:
-        layout = QVBoxLayout(self)
-        layout.setSpacing(12)
-        layout.setContentsMargins(24, 20, 24, 20)
+        self._stack = QStackedWidget()
+        self._stack.addWidget(self._presets)    # index 0
+        self._stack.addWidget(self._settings)   # index 1
 
-        # Header
-        header = QHBoxLayout()
-        title = QLabel("PassXMP")
-        title.setFont(QFont("", 18, QFont.Weight.Bold))
-        header.addWidget(title)
+        root = QVBoxLayout(self)
+        root.setContentsMargins(0, 0, 0, 0)
+        root.setSpacing(0)
+        root.addWidget(self._build_header())
+        root.addWidget(self._stack, 1)
 
-        self._status_dot = QLabel("\u25cf")
-        self._status_dot.setStyleSheet("color: #22c55e; font-size: 16px;")
-        header.addWidget(self._status_dot)
+        # Signal wiring
+        self._settings.config_changed.connect(self.config_changed.emit)
+        self._settings.pause_toggled.connect(self.pause_toggled.emit)
+        self._presets.sync_requested.connect(self.sync_requested.emit)
+        self._presets.stop_requested.connect(self.stop_requested.emit)
 
-        self._status_label = QLabel("Syncing")
-        self._status_label.setStyleSheet("color: #22c55e; font-weight: bold;")
-        header.addWidget(self._status_label)
-        header.addStretch()
-        layout.addLayout(header)
+    # ----- header -----
 
-        # Separator
-        line = QFrame()
-        line.setFrameShape(QFrame.Shape.HLine)
-        line.setStyleSheet("color: #e5e7eb;")
-        layout.addWidget(line)
+    def _build_header(self) -> QWidget:
+        header = QWidget()
+        header.setStyleSheet(_SEG_STYLE)
+        row = QHBoxLayout(header)
+        row.setContentsMargins(12, 8, 12, 8)
 
-        # Stats
-        self._count_label = QLabel("0 presets synced")
-        self._count_label.setFont(QFont("", 14))
-        layout.addWidget(self._count_label)
+        title = QLabel("<b>PassXMP</b>")
+        row.addWidget(title)
+        row.addStretch()
 
-        self._last_label = QLabel("")
-        self._last_label.setStyleSheet("color: #888;")
-        layout.addWidget(self._last_label)
+        self._seg = QButtonGroup(self)
+        self._seg.setExclusive(True)
 
-        # Separator
-        line2 = QFrame()
-        line2.setFrameShape(QFrame.Shape.HLine)
-        line2.setStyleSheet("color: #e5e7eb;")
-        layout.addWidget(line2)
+        seg_container = QWidget()
+        seg_container.setObjectName("SegContainer")
+        seg_row = QHBoxLayout(seg_container)
+        seg_row.setContentsMargins(0, 0, 0, 0)
+        seg_row.setSpacing(0)
 
-        # Activity label
-        activity_title = QLabel("Recent Activity")
-        activity_title.setFont(QFont("", 12, QFont.Weight.DemiBold))
-        layout.addWidget(activity_title)
+        self._btn_presets = QPushButton("Presets")
+        self._btn_presets.setCheckable(True)
+        self._btn_presets.setChecked(True)
+        self._btn_presets.clicked.connect(lambda: self.select_tab("Presets"))
+        seg_row.addWidget(self._btn_presets)
+        self._seg.addButton(self._btn_presets, 0)
 
-        # Scrollable activity list
-        self._activity_area = QScrollArea()
-        self._activity_area.setWidgetResizable(True)
-        self._activity_area.setFrameShape(QFrame.Shape.NoFrame)
-        self._activity_widget = QWidget()
-        self._activity_layout = QVBoxLayout(self._activity_widget)
-        self._activity_layout.setSpacing(2)
-        self._activity_layout.setContentsMargins(0, 0, 0, 0)
-        self._activity_layout.addStretch()
-        self._activity_area.setWidget(self._activity_widget)
-        layout.addWidget(self._activity_area, 1)
+        self._btn_settings = QPushButton("Settings")
+        self._btn_settings.setCheckable(True)
+        self._btn_settings.clicked.connect(lambda: self.select_tab("Settings"))
+        seg_row.addWidget(self._btn_settings)
+        self._seg.addButton(self._btn_settings, 1)
 
-        # Bottom buttons
-        btn_row = QHBoxLayout()
-        self._sync_btn = QPushButton("Sync All Now")
-        self._sync_btn.setFixedHeight(36)
-        self._sync_btn.clicked.connect(self.sync_all_requested.emit)
-        btn_row.addWidget(self._sync_btn)
+        row.addWidget(seg_container)
+        return header
 
-        self._settings_btn = QPushButton("Settings")
-        self._settings_btn.setFixedHeight(36)
-        self._settings_btn.clicked.connect(self.settings_requested.emit)
-        btn_row.addWidget(self._settings_btn)
-        layout.addLayout(btn_row)
+    # ----- public API -----
 
-    @pyqtSlot(str, str)
-    def add_activity(self, xmp_rel: str, cube_rel: str) -> None:
-        """Add a sync activity entry to the log."""
-        self._synced_count += 1
-        self._last_sync_name = xmp_rel.rsplit("/", 1)[-1].rsplit("\\", 1)[-1]
-        self._last_sync_time = time.time()
+    def select_tab(self, name: str) -> None:
+        if name == "Presets":
+            self._btn_presets.setChecked(True)
+            self._stack.setCurrentIndex(0)
+        elif name == "Settings":
+            self._btn_settings.setChecked(True)
+            self._stack.setCurrentIndex(1)
 
-        self._count_label.setText(f"{self._synced_count} presets synced")
-        self._update_time_display()
+    def current_tab_name(self) -> str:
+        return "Presets" if self._stack.currentIndex() == 0 else "Settings"
 
-        item = ActivityItem(xmp_rel, cube_rel)
-        # Insert before the stretch
-        count = self._activity_layout.count()
-        self._activity_layout.insertWidget(max(0, count - 1), item)
+    def segmented_control(self) -> QButtonGroup:
+        return self._seg
 
-        # Keep only last 100 entries
-        while self._activity_layout.count() > 101:  # 100 items + 1 stretch
-            w = self._activity_layout.takeAt(0)
-            if w.widget():
-                w.widget().deleteLater()
+    def presets_view(self) -> PresetsView:
+        return self._presets
 
-        # Scroll to bottom
-        QTimer.singleShot(50, lambda: self._activity_area.verticalScrollBar().setValue(
-            self._activity_area.verticalScrollBar().maximum()
-        ))
-
-    def set_synced_count(self, count: int) -> None:
-        self._synced_count = count
-        self._count_label.setText(f"{self._synced_count} presets synced")
-
-    def set_status(self, running: bool) -> None:
-        if running:
-            self._status_dot.setStyleSheet("color: #22c55e; font-size: 16px;")
-            self._status_label.setText("Syncing")
-            self._status_label.setStyleSheet("color: #22c55e; font-weight: bold;")
-        else:
-            self._status_dot.setStyleSheet("color: #eab308; font-size: 16px;")
-            self._status_label.setText("Paused")
-            self._status_label.setStyleSheet("color: #eab308; font-weight: bold;")
-
-    def _update_time_display(self) -> None:
-        if self._last_sync_time == 0:
-            self._last_label.setText("")
-            return
-
-        elapsed = time.time() - self._last_sync_time
-        if elapsed < 60:
-            ago = "just now"
-        elif elapsed < 3600:
-            mins = int(elapsed / 60)
-            ago = f"{mins} min ago"
-        else:
-            hours = int(elapsed / 3600)
-            ago = f"{hours} hr ago"
-
-        self._last_label.setText(f"Last sync: {self._last_sync_name} \u2014 {ago}")
+    def settings_view(self) -> SettingsView:
+        return self._settings
