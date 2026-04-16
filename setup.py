@@ -16,6 +16,7 @@ setup(
         "scipy>=1.10",
         "colour-science>=0.4",
         "Pillow>=10.0",
+        "defusedxml>=0.7",
     ],
     entry_points={
         "console_scripts": [

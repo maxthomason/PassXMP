@@ -94,3 +94,51 @@ class TestSanitize:
         curve = result.get("ToneCurvePV2012")
         assert isinstance(curve, list)
         assert len(curve) == 5
+
+
+class TestXmpHardening:
+    """Regression tests for malicious XMP payloads."""
+
+    def test_billion_laughs_rejected(self, tmp_path):
+        """defusedxml should refuse a file with nested entity definitions."""
+        from defusedxml.common import EntitiesForbidden
+
+        bomb = tmp_path / "bomb.xmp"
+        bomb.write_text(
+            '<?xml version="1.0"?>\n'
+            '<!DOCTYPE lolz [\n'
+            ' <!ENTITY lol "lol">\n'
+            ' <!ENTITY lol2 "&lol;&lol;&lol;&lol;&lol;&lol;&lol;&lol;&lol;&lol;">\n'
+            ' <!ENTITY lol3 "&lol2;&lol2;&lol2;&lol2;&lol2;&lol2;&lol2;&lol2;&lol2;&lol2;">\n'
+            ']>\n'
+            '<x:xmpmeta xmlns:x="adobe:ns:meta/">&lol3;</x:xmpmeta>\n'
+        )
+        with pytest.raises(EntitiesForbidden):
+            parse_xmp(str(bomb))
+
+    def test_external_entity_rejected(self, tmp_path):
+        """defusedxml should refuse SYSTEM entity references to local files."""
+        from defusedxml.common import EntitiesForbidden
+
+        evil = tmp_path / "evil.xmp"
+        evil.write_text(
+            '<?xml version="1.0"?>\n'
+            '<!DOCTYPE foo [<!ENTITY xxe SYSTEM "file:///etc/passwd">]>\n'
+            '<x:xmpmeta xmlns:x="adobe:ns:meta/">&xxe;</x:xmpmeta>\n'
+        )
+        with pytest.raises(EntitiesForbidden):
+            parse_xmp(str(evil))
+
+    def test_process_xmp_file_survives_entity_bomb(self, tmp_path):
+        """Full pipeline returns False without raising when fed a bomb."""
+        from src.core.sync_engine import process_xmp_file
+
+        bomb = tmp_path / "bomb.xmp"
+        bomb.write_text(
+            '<?xml version="1.0"?>\n'
+            '<!DOCTYPE lolz [<!ENTITY lol "lol">]>\n'
+            '<x:xmpmeta xmlns:x="adobe:ns:meta/">&lol;</x:xmpmeta>\n'
+        )
+        cube = tmp_path / "bomb.cube"
+        assert process_xmp_file(str(bomb), str(cube), lut_size=33) is False
+        assert not cube.exists()

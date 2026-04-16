@@ -2,6 +2,9 @@
 
 import logging
 import os
+import xml.etree.ElementTree as ET
+
+from defusedxml.common import DefusedXmlException
 
 from .xmp_parser import parse_xmp, sanitize
 from .hald_generator import generate_hald_identity
@@ -53,13 +56,9 @@ def process_xmp_file(
         logger.info("Written CUBE: %s", cube_path)
         return True
 
-    except ET.ParseError:
+    except (ET.ParseError, DefusedXmlException):
         logger.error("Failed to parse XML in %s", xmp_path)
         return False
     except Exception:
         logger.exception("Error processing %s", xmp_path)
         return False
-
-
-# Import ET for exception handling
-import xml.etree.ElementTree as ET

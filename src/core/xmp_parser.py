@@ -1,6 +1,11 @@
-"""XMP parsing and sanitization for Lightroom preset files."""
+"""XMP parsing and sanitization for Lightroom preset files.
 
-import xml.etree.ElementTree as ET
+Uses defusedxml to block entity-expansion (billion-laughs) and
+external-entity attacks. A malicious .xmp file dropped into the
+watched folder cannot exhaust memory or exfiltrate local files.
+"""
+
+import defusedxml.ElementTree as ET
 
 CRS_NS = "http://ns.adobe.com/camera-raw-settings/1.0/"
 RDF_NS = "http://www.w3.org/1999/02/22-rdf-syntax-ns#"
