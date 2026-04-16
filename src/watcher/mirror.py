@@ -69,6 +69,8 @@ def initial_sync(
     dv_root: str,
     lut_size: int = 33,
     on_progress: callable = None,
+    on_scan: callable = None,
+    is_cancelled: callable = None,
 ) -> tuple[int, int]:
     """Walk the Lightroom presets folder and convert all .xmp files.
 
@@ -79,14 +81,18 @@ def initial_sync(
         lr_root: Lightroom presets root directory.
         dv_root: DaVinci LUT root directory.
         lut_size: LUT resolution.
-        on_progress: Callback(current, total, filename) for progress updates.
+        on_progress: Callback(current, total, xmp_path) called after each file.
+        on_scan: Callback(dirpath, found_so_far) called while walking the tree.
 
     Returns:
         Tuple of (converted_count, total_xmp_count).
     """
-    # Collect all .xmp files
     xmp_files = []
     for dirpath, _, filenames in os.walk(lr_root):
+        if is_cancelled and is_cancelled():
+            return 0, 0
+        if on_scan:
+            on_scan(dirpath, len(xmp_files))
         for filename in filenames:
             if filename.lower().endswith(".xmp"):
                 xmp_files.append(os.path.join(dirpath, filename))
@@ -95,15 +101,16 @@ def initial_sync(
     converted = 0
 
     for i, xmp_path in enumerate(xmp_files):
+        if is_cancelled and is_cancelled():
+            break
         cube_path = get_mirror_path(xmp_path, lr_root, dv_root)
 
-        # Skip if cube exists and is newer than xmp
         if os.path.exists(cube_path):
             xmp_mtime = os.path.getmtime(xmp_path)
             cube_mtime = os.path.getmtime(cube_path)
             if cube_mtime >= xmp_mtime:
                 if on_progress:
-                    on_progress(i + 1, total, os.path.basename(xmp_path))
+                    on_progress(i + 1, total, xmp_path)
                 continue
 
         success = process_xmp_file(xmp_path, cube_path, lut_size)
@@ -111,7 +118,7 @@ def initial_sync(
             converted += 1
 
         if on_progress:
-            on_progress(i + 1, total, os.path.basename(xmp_path))
+            on_progress(i + 1, total, xmp_path)
 
     logger.info("Initial sync complete: %d/%d converted", converted, total)
     return converted, total
