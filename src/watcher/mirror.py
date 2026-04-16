@@ -74,6 +74,9 @@ def initial_sync(
 ) -> tuple[int, int]:
     """Walk the Lightroom presets folder and convert all .xmp files.
 
+    Symlinks inside ``lr_root`` are NOT followed — the os.walk default. A
+    hostile symlink can't redirect the walk to ``/etc`` or a network share.
+
     Only converts files that don't already have a corresponding .cube file,
     or where the .xmp is newer than the existing .cube.
 

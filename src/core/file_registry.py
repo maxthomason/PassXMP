@@ -74,6 +74,14 @@ class FileRegistry(QObject):
     # ----- scanning -----
 
     def rescan(self, lr_root: str, dv_root: str) -> None:
+        """Walk ``lr_root`` and rebuild the list of discovered .xmp files.
+
+        Symlinks inside ``lr_root`` are NOT followed (``os.walk`` default).
+        This is intentional — it keeps a crafted symlink from sending the
+        scan off to `/etc` or a network share. A user who organises presets
+        through symlinks will need to either flatten them into the folder
+        or use a new configurable flag (not yet implemented).
+        """
         self._lr_root = lr_root
         self._dv_root = dv_root
         self._last_scan_error = ""

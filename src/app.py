@@ -248,7 +248,11 @@ class PassXMPApp(QObject):
             self._tray.set_syncing(False)
 
     def _on_watcher_file_synced(self, xmp_rel: str, _cube_rel: str) -> None:
-        lr = self.config.lightroom_path
+        # Use the watcher's frozen lr_root (captured at start()) rather than
+        # config.lightroom_path — if the user changed the LR path while the
+        # watcher was running, the new config value won't match the absolute
+        # path the registry has indexed.
+        lr = self._watcher.lr_root if self._watcher else self.config.lightroom_path
         xmp_abs = os.path.join(lr, xmp_rel) if lr else xmp_rel
         self._row_done.emit(xmp_abs, True, "")
 
@@ -271,7 +275,10 @@ class PassXMPApp(QObject):
 
     def _confirm_sync_size(self, rows: list) -> bool:
         size = self.config.lut_size
-        per = 7 * 1024 * 1024 if size >= 65 else 1 * 1024 * 1024
+        # Measured: ~1.2 MB per 33³ cube (35,937 lines × ~26 bytes),
+        # ~10.7 MB per 65³ cube (274,625 lines). Round up slightly so the
+        # "Large sync" warning triggers at roughly the intended threshold.
+        per = 11 * 1024 * 1024 if size >= 65 else 1280 * 1024
         est = len(rows) * per
         if est < 500 * 1024 * 1024:
             return True
@@ -321,6 +328,12 @@ class PassXMPApp(QObject):
 
     @pyqtSlot()
     def _on_quit(self) -> None:
+        # The joins inside _cancel_running_sync and _stop_watcher can block
+        # the main thread for several seconds on slow filesystems. Hint at
+        # what's happening before we freeze the UI.
+        if self._main_window:
+            self._main_window.setWindowTitle("PassXMP — Stopping…")
+            QApplication.processEvents()
         self._cancel_running_sync()
         self._stop_watcher()
         QApplication.quit()

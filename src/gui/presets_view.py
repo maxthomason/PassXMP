@@ -12,7 +12,7 @@ from PyQt6.QtWidgets import (
     QHeaderView, QAbstractItemView, QStackedWidget,
 )
 
-from ..core.file_registry import FileRegistry, derive_status
+from ..core.file_registry import FileRegistry
 from .widgets.live_dot import LiveDot
 from .widgets.progress_footer import ProgressFooter
 from .widgets.status_cell import STATUS_COLORS, status_display
@@ -242,7 +242,10 @@ class PresetsView(QWidget):
         rows = self._registry.rows()
         total = len(rows)
         selected = sum(1 for r in rows if r.selected)
-        synced = sum(1 for r in rows if derive_status(r, set(), set()) == "synced")
+        # Use the registry's live status so in-flight files don't briefly
+        # appear as "synced" during a re-sync.
+        synced = sum(1 for r in rows
+                     if self._registry.status(r.xmp_path) == "synced")
         failed = sum(1 for r in rows
                      if self._registry.status(r.xmp_path) == "failed")
         parts = [f"{total} presets", f"{selected} selected",
