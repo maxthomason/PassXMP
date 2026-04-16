@@ -2,6 +2,30 @@
 
 All notable changes to PassXMP will be documented in this file.
 
+## [2.0.1] — 2026-04-16
+
+**Security release. Users on 2.0.0 should upgrade.**
+
+### Security
+- Switch XMP parser to `defusedxml`. A crafted `.xmp` file with nested entity definitions (billion-laughs) could previously exhaust memory on older expat versions. External entity references are also rejected, blocking local-file exfiltration via a malicious preset pack.
+- Normalise path separators in `_cleanup_empty_dirs` so a trailing slash on `dv_root` cannot make the empty-dir walk delete the DaVinci LUT folder itself when all presets are removed.
+
+### Fixed
+- `.cube` writes are now atomic (temp file + `os.replace`). A crash mid-write used to leave a truncated LUT whose newer mtime fooled the freshness check into skipping re-conversion.
+- `config.json` saves use the same atomic pattern. A crash mid-save no longer resets all user settings.
+- `os.getlogin()` in Linux path detection is guarded with a `$USER` fallback — the app no longer crashes at launch on hosts without a controlling terminal (Docker, `systemd --user`, double-forked daemons).
+- `mark_done` returns early for rows that were already removed by the watcher. Prevents `_failed` set leaks when a file is deleted mid-sync.
+- `passxmp.log` now rotates at 5 MB with 3 backups. Long-running installs no longer accumulate an unbounded log file.
+- Rescan distinguishes "folder not found", "folder not readable", and "empty folder" in the Presets empty state so unreachable LR paths surface instead of silently showing "no presets."
+- `.cube` `TITLE` header strips double-quotes, newlines, and non-printable characters. Presets with unusual filenames no longer produce malformed LUT headers.
+
+### Polish
+- Main window briefly shows `PassXMP — Stopping…` before the blocking joins in `_on_quit`, so a slow shutdown doesn't look like a hang.
+- Presets summary line uses the registry's live status instead of a stale derivation, so in-flight files no longer briefly show as "synced" during re-sync.
+- Watcher completion callback uses the watcher's frozen `lr_root` instead of the live config value, so the UI stays consistent if folders are changed while a sync is running.
+- "Large sync" size warning threshold updated to measured per-file byte counts (~1.28 MB at 33³, ~11 MB at 65³) instead of the earlier underestimate.
+- `rescan` and `initial_sync` docstrings document that symlinks inside `lr_root` are not followed.
+
 ## [2.0.0] — 2026-04-16
 
 ### Changed
