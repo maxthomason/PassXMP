@@ -13,6 +13,7 @@ DEFAULT_CONFIG = {
     "lut_size": 33,
     "auto_start": False,
     "first_run": True,
+    "selected_relative_paths": [],
 }
 
 
@@ -102,3 +103,12 @@ class ConfigManager:
     @auto_start.setter
     def auto_start(self, value: bool) -> None:
         self._data["auto_start"] = value
+
+    @property
+    def selected_relative_paths(self) -> list[str]:
+        value = self._data.get("selected_relative_paths")
+        return list(value) if isinstance(value, list) else []
+
+    @selected_relative_paths.setter
+    def selected_relative_paths(self, value: list[str]) -> None:
+        self._data["selected_relative_paths"] = list(value)
