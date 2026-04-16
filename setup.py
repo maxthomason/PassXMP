@@ -2,7 +2,7 @@ from setuptools import setup, find_packages
 
 setup(
     name="passxmp",
-    version="1.0.0",
+    version="2.0.0",
     description="Mirror Lightroom presets as DaVinci Resolve .cube LUT files",
     author="Maxwell Thomason",
     url="https://github.com/maxthomason/PassXMP",
