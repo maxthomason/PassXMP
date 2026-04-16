@@ -3,7 +3,7 @@
 Thanks for your interest. PassXMP is a small project — the bar for contributing is:
 
 - **Issues first.** If you're planning more than a one-line fix, open an issue to talk through the approach before writing code.
-- **Tests required.** New behavior ships with a test. Run `.venv/bin/python -m pytest` — 107+ tests should pass.
+- **Tests required.** New behavior ships with a test. Run `.venv/bin/python -m pytest` — 120+ tests should pass.
 - **TDD encouraged.** Write the failing test first, then the implementation.
 - **No style police.** There's no formatter or linter in CI. Match surrounding code.
 
@@ -15,7 +15,7 @@ cd PassXMP
 python3.11 -m venv .venv
 source .venv/bin/activate
 pip install -r requirements.txt -r requirements-dev.txt
-.venv/bin/python -m pytest        # should show 107 passing
+.venv/bin/python -m pytest        # should show 120 passing
 .venv/bin/python -m src.main
 ```
 

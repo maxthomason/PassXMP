@@ -29,7 +29,7 @@ python -m src.main
 
 ### Pre-built binaries
 
-Mac `.dmg` and Windows `.exe` builds are published on the [Releases](https://github.com/maxthomason/PassXMP/releases) page.
+Pre-built Mac `.dmg` and Windows `.exe` binaries are not yet available — see [Releases](https://github.com/maxthomason/PassXMP/releases) for source-code tags. For now, run from source (above).
 
 ## Usage
 
@@ -118,7 +118,7 @@ See [CONTRIBUTING.md](CONTRIBUTING.md) for setup, test running, and PR guideline
 
 ```bash
 pip install -r requirements.txt -r requirements-dev.txt
-python -m pytest                     # 107+ tests
+python -m pytest                     # 120+ tests
 python -m src.main                   # run the app
 bash scripts/build_mac.sh            # build a .dmg
 ```
