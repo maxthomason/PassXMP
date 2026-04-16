@@ -125,7 +125,14 @@ def initial_sync(
 
 
 def _cleanup_empty_dirs(dirpath: str, root: str) -> None:
-    """Remove empty directories up to (but not including) root."""
+    """Remove empty directories up to (but not including) root.
+
+    Both paths are normalised so a trailing slash on ``root`` (from a hand-typed
+    config value, for example) cannot make the loop "miss" the root and delete
+    the user's DaVinci LUT folder itself.
+    """
+    root = os.path.normpath(root)
+    dirpath = os.path.normpath(dirpath)
     while dirpath != root and dirpath != os.path.dirname(dirpath):
         try:
             if os.path.isdir(dirpath) and not os.listdir(dirpath):

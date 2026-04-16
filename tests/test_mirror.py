@@ -125,3 +125,37 @@ class TestInitialSync:
         converted, total = initial_sync(lr_root, dv_root, lut_size=5)
         assert total == 1
         assert converted == 0  # Already up to date
+
+
+class TestCleanupEmptyDirsSafety:
+    """Regression for the trailing-slash path-traversal bug in _cleanup_empty_dirs."""
+
+    def test_trailing_slash_on_root_does_not_delete_root(self, tmp_path):
+        from src.watcher.mirror import _cleanup_empty_dirs
+
+        root = tmp_path / "dv"
+        root.mkdir()
+        sub = root / "sub"
+        sub.mkdir()
+
+        # Root provided WITH trailing slash — the bug made the loop miss it
+        # and try to rmdir the root itself.
+        _cleanup_empty_dirs(str(sub), str(root) + os.sep)
+
+        assert root.is_dir(), "dv_root should still exist"
+
+    def test_stops_at_root_without_trailing_slash(self, tmp_path):
+        from src.watcher.mirror import _cleanup_empty_dirs
+
+        root = tmp_path / "dv"
+        root.mkdir()
+        a = root / "a"
+        a.mkdir()
+        b = a / "b"
+        b.mkdir()
+
+        _cleanup_empty_dirs(str(b), str(root))
+
+        assert root.is_dir()
+        assert not a.exists()
+        assert not b.exists()
