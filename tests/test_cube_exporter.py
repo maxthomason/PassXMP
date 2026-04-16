@@ -79,3 +79,46 @@ class TestWriteCube:
 
         read_array = np.array(read_data, dtype=np.float32)
         np.testing.assert_allclose(read_array, lut, atol=1e-5)
+
+
+class TestAtomicWrite:
+    """Regression tests for atomic .cube writes."""
+
+    def test_no_temp_file_left_after_success(self, tmp_path):
+        size = 5
+        lut = generate_hald_identity(size)
+        out = str(tmp_path / "ok.cube")
+        write_cube(lut, out, "ok", size=size)
+
+        assert os.path.exists(out)
+        assert not os.path.exists(out + ".tmp"), "temp file must be renamed away"
+
+    def test_partial_file_cleaned_up_on_failure(self, tmp_path, monkeypatch):
+        """If the write raises mid-way, no stale .tmp is left behind."""
+        size = 5
+        lut = generate_hald_identity(size)
+        out = str(tmp_path / "fail.cube")
+        tmp = out + ".tmp"
+
+        real_replace = os.replace
+        def boom(src, dst):
+            raise RuntimeError("disk full simulated")
+        monkeypatch.setattr(os, "replace", boom)
+
+        with pytest.raises(RuntimeError):
+            write_cube(lut, out, "fail", size=size)
+
+        assert not os.path.exists(out), "main file must not appear"
+        assert not os.path.exists(tmp), "temp file must be cleaned up"
+
+    def test_title_strips_unsafe_chars(self, tmp_path):
+        """Newlines and double-quotes in the title must not break the header."""
+        size = 5
+        lut = generate_hald_identity(size)
+        out = str(tmp_path / "weird.cube")
+        write_cube(lut, out, 'My"bad\npreset', size=size)
+
+        header = open(out).readline()
+        assert header.startswith('TITLE "')
+        assert header.count('"') == 2  # exactly the two wrapping quotes
+        assert "\n" in header  # the terminating newline, nothing else
