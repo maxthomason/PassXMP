@@ -52,10 +52,25 @@ class ConfigManager:
                 logger.warning("Failed to load config, using defaults")
 
     def save(self) -> None:
-        """Persist config to disk."""
+        """Persist config to disk atomically.
+
+        Writing to a temp file first and renaming over the real config
+        prevents a crash or power loss mid-write from producing an
+        unparseable JSON document — which would silently reset every
+        user setting the next time the app loads.
+        """
         os.makedirs(os.path.dirname(self._path), exist_ok=True)
-        with open(self._path, "w") as f:
-            json.dump(self._data, f, indent=2)
+        tmp_path = self._path + ".tmp"
+        try:
+            with open(tmp_path, "w") as f:
+                json.dump(self._data, f, indent=2)
+            os.replace(tmp_path, self._path)
+        except BaseException:
+            try:
+                os.remove(tmp_path)
+            except OSError:
+                pass
+            raise
         logger.debug("Config saved to %s", self._path)
 
     def get(self, key: str, default=None):

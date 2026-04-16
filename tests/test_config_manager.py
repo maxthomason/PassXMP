@@ -31,3 +31,34 @@ def test_selected_relative_paths_normalises_to_list():
             json.dump({"selected_relative_paths": None}, f)
         cfg = ConfigManager(path)
         assert cfg.selected_relative_paths == []
+
+
+def test_save_is_atomic_no_temp_left(tmp_path):
+    from src.config.config_manager import ConfigManager
+    path = tmp_path / "c.json"
+    cfg = ConfigManager(str(path))
+    cfg.lightroom_path = "/x"
+    cfg.save()
+
+    assert path.exists()
+    assert not (tmp_path / "c.json.tmp").exists()
+
+
+def test_save_cleans_up_temp_on_failure(tmp_path, monkeypatch):
+    import os as _os
+    import pytest as _pytest
+    from src.config.config_manager import ConfigManager
+
+    path = tmp_path / "c.json"
+    cfg = ConfigManager(str(path))
+    cfg.lightroom_path = "/x"
+
+    def boom(src, dst):
+        raise RuntimeError("simulated rename failure")
+
+    monkeypatch.setattr(_os, "replace", boom)
+    with _pytest.raises(RuntimeError):
+        cfg.save()
+
+    assert not path.exists(), "main config must not be overwritten"
+    assert not (tmp_path / "c.json.tmp").exists(), "temp must be cleaned up"
