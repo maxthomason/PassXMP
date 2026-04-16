@@ -223,3 +223,20 @@ def test_registry_on_watcher_modified_refreshes_mtimes():
         registry.on_watcher_modified(xmp)
 
         assert registry.rows()[0].xmp_mtime == 3000.0
+
+
+def test_mark_done_after_delete_does_not_leak_failed():
+    """Race: watcher removes row first, late mark_done must not add to _failed."""
+    with tempfile.TemporaryDirectory() as lr, tempfile.TemporaryDirectory() as dv:
+        xmp = os.path.join(lr, "a.xmp")
+        _touch(xmp, mtime=1000.0)
+        registry = FileRegistry()
+        registry.rescan(lr, dv)
+
+        registry.mark_syncing(xmp)
+        registry.on_watcher_deleted(xmp)
+        registry.mark_done(xmp, ok=False, err="boom")
+
+        # Internal: _failed must not contain the deleted path
+        assert xmp not in registry._failed
+        assert registry.row_count() == 0

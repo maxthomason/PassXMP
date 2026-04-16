@@ -129,15 +129,20 @@ class FileRegistry(QObject):
     def mark_done(self, xmp_path: str, ok: bool, err: str | None = None) -> None:
         self._in_flight.discard(xmp_path)
         idx = self._index.get(xmp_path)
+        if idx is None:
+            # Row was removed (e.g. the watcher saw a delete event while
+            # this file was still in flight). Drop the completion on the
+            # floor so we don't leak the path in self._failed.
+            self._failed.discard(xmp_path)
+            return
         if ok:
             self._failed.discard(xmp_path)
-            if idx is not None and os.path.exists(self._rows[idx].cube_path):
+            if os.path.exists(self._rows[idx].cube_path):
                 self._rows[idx].cube_mtime = os.path.getmtime(self._rows[idx].cube_path)
                 self._rows[idx].last_error = None
         else:
             self._failed.add(xmp_path)
-            if idx is not None:
-                self._rows[idx].last_error = err
+            self._rows[idx].last_error = err
         self._emit_changed(xmp_path)
 
     def _emit_changed(self, xmp_path: str) -> None:
