@@ -40,7 +40,7 @@ class ProgressFooter(QWidget):
         row = QHBoxLayout(w)
         row.setContentsMargins(14, 10, 14, 10)
         self._idle_summary = QLabel("Ready")
-        self._idle_summary.setStyleSheet("color: #8e8e93;")
+        self._idle_summary.setStyleSheet("color: palette(placeholder-text);")
         row.addWidget(self._idle_summary, 1)
         self._sync_btn = QPushButton("Sync")
         self._sync_btn.setDefault(True)
@@ -61,7 +61,7 @@ class ProgressFooter(QWidget):
         top.addWidget(self._active_title, 1)
         self._active_count = QLabel("")
         self._active_count.setStyleSheet(
-            "color: #8e8e93; font-family: ui-monospace, SFMono-Regular, Menlo, monospace;"
+            "color: palette(placeholder-text); font-family: ui-monospace, SFMono-Regular, Menlo, monospace;"
         )
         top.addWidget(self._active_count)
         col.addLayout(top)
@@ -78,7 +78,7 @@ class ProgressFooter(QWidget):
         col.addLayout(mid)
 
         self._active_bytes = QLabel("")
-        self._active_bytes.setStyleSheet("color: #8e8e93;")
+        self._active_bytes.setStyleSheet("color: palette(placeholder-text);")
         col.addWidget(self._active_bytes)
         return w
 
@@ -124,7 +124,7 @@ class ProgressFooter(QWidget):
         bytes_projected: int | None = None,
     ) -> None:
         folder_tail = f" · {folder}" if folder else ""
-        self._active_title.setText(f"<b>{current_name}</b><span style='color:#8e8e93'>{folder_tail}</span>")
+        self._active_title.setText(f"<b>{current_name}</b><span style='color:gray'>{folder_tail}</span>")
         self._active_count.setText(f"{current_index} / {total}")
         self._bar.setRange(0, max(total, 1))
         self._bar.setValue(min(current_index, total))

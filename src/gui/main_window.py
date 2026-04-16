@@ -12,10 +12,11 @@ from .settings_view import SettingsView
 
 
 _SEG_STYLE = """
-QPushButton { background: #e8e8ea; color: #3a3a3c; border: none;
+QWidget#SegContainer { background: palette(button); border-radius: 6px; padding: 2px; }
+QPushButton { background: transparent; color: palette(text); border: none;
               padding: 4px 14px; font-size: 12px; }
-QPushButton:checked { background: #ffffff; color: #111; }
-QWidget#SegContainer { background: #e8e8ea; border-radius: 6px; padding: 2px; }
+QPushButton:checked { background: palette(base);
+                      color: palette(highlighted-text); }
 """
 
 

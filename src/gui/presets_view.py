@@ -154,12 +154,15 @@ class PresetsView(QWidget):
 
     def _build_topbar(self) -> QWidget:
         w = QWidget()
-        w.setStyleSheet("background: #fafafc; border-bottom: 1px solid #ececee;")
+        w.setStyleSheet(
+            "QWidget { background: palette(alternate-base); }"
+        )
         row = QHBoxLayout(w)
         row.setContentsMargins(14, 10, 14, 10)
         self._dot = LiveDot()
         row.addWidget(self._dot)
         self._summary = QLabel("")
+        self._summary.setStyleSheet("color: palette(text);")
         row.addWidget(self._summary, 1)
         self._search = QLineEdit()
         self._search.setPlaceholderText("Search")
@@ -194,7 +197,9 @@ class PresetsView(QWidget):
 
         self._empty_label = QLabel("")
         self._empty_label.setAlignment(Qt.AlignmentFlag.AlignCenter)
-        self._empty_label.setStyleSheet("color: #8e8e93; font-size: 13px; padding: 40px;")
+        self._empty_label.setStyleSheet(
+            "color: palette(placeholder-text); font-size: 13px; padding: 40px;"
+        )
         self._empty_label.setWordWrap(True)
 
         self._table_stack = QStackedWidget()

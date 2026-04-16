@@ -13,11 +13,11 @@ from .widgets.live_dot import LiveDot
 
 _SECTION_STYLE = (
     "text-transform: uppercase; font-size: 10.5px; letter-spacing: 0.5px; "
-    "color: #8e8e93; margin-top: 8px;"
+    "color: palette(placeholder-text); margin-top: 8px;"
 )
 _PATH_STYLE = (
-    "color: #6c6c70; font-family: ui-monospace, SFMono-Regular, Menlo, monospace; "
-    "font-size: 11.5px;"
+    "color: palette(text); font-family: ui-monospace, SFMono-Regular, Menlo, monospace; "
+    "font-size: 11.5px; background: palette(alternate-base);"
 )
 
 

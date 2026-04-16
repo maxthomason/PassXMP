@@ -13,9 +13,9 @@ from PyQt6.QtGui import QColor
 Status = Literal["synced", "pending", "syncing", "failed"]
 
 STATUS_COLORS = {
-    "ok": QColor(58, 143, 58),
-    "fail": QColor(199, 53, 42),
-    "muted": QColor(142, 142, 147),
+    "ok": QColor(50, 180, 80),       # was (58, 143, 58) — brighter, still green
+    "fail": QColor(236, 95, 88),     # was (199, 53, 42) — brighter red
+    "muted": QColor(142, 142, 147),  # unchanged
 }
 
 
