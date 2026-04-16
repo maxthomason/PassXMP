@@ -131,9 +131,16 @@ def _detect_windows_paths() -> dict[str, list[str]]:
 
 def _detect_linux_paths() -> dict[str, list[str]]:
     home = os.path.expanduser("~")
+    try:
+        user = os.getlogin()
+    except OSError:
+        # No controlling terminal (e.g. launched via systemd --user,
+        # Docker, or a double-forked daemon). Fall back to $USER or
+        # the home-directory basename so we don't crash at launch.
+        user = os.environ.get("USER") or os.path.basename(home)
     return {
         "lightroom": [
-            os.path.join(home, ".wine", "drive_c", "users", os.getlogin(),
+            os.path.join(home, ".wine", "drive_c", "users", user,
                          "AppData", "Roaming", "Adobe", "Lightroom",
                          "Develop Presets"),
         ],
