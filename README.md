@@ -16,7 +16,7 @@ No Lightroom engine dependency. No manual export steps. No technical knowledge r
 
 ## Download
 
-> **Releases coming soon** — Mac (`.dmg`) and Windows (`.exe`) builds will be available on the [Releases](https://github.com/maxwellthomason/passxmp/releases) page.
+> **Releases coming soon** — Mac (`.dmg`) and Windows (`.exe`) builds will be available on the [Releases](https://github.com/maxthomason/PassXMP/releases) page.
 
 ---
 
@@ -108,7 +108,7 @@ Requires **Python 3.11+**.
 
 ```bash
 # Clone
-git clone https://github.com/maxwellthomason/passxmp.git
+git clone https://github.com/maxthomason/PassXMP.git
 cd passxmp
 
 # Install dependencies
@@ -216,4 +216,4 @@ Areas where help is especially appreciated:
 
 MIT — see [LICENSE](LICENSE).
 
-Built by [Maxwell Thomason](https://github.com/maxwellthomason) for the photo editing community.
+Built by [Maxwell Thomason](https://github.com/maxthomason) for the photo editing community.

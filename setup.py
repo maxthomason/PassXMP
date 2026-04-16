@@ -5,7 +5,7 @@ setup(
     version="1.0.0",
     description="Mirror Lightroom presets as DaVinci Resolve .cube LUT files",
     author="Maxwell Thomason",
-    url="https://github.com/maxwellthomason/passxmp",
+    url="https://github.com/maxthomason/PassXMP",
     license="MIT",
     packages=find_packages(),
     python_requires=">=3.11",
