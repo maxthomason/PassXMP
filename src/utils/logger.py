@@ -3,6 +3,10 @@
 import logging
 import os
 import platform
+from logging.handlers import RotatingFileHandler
+
+_MAX_BYTES = 5 * 1024 * 1024  # 5 MB per file
+_BACKUP_COUNT = 3             # keep passxmp.log + 3 rotated siblings
 
 
 def _log_dir() -> str:
@@ -28,7 +32,11 @@ def setup_logging() -> None:
     if root.handlers:
         return
     root.setLevel(logging.INFO)
-    handler = logging.FileHandler(os.path.join(_log_dir(), "passxmp.log"))
+    handler = RotatingFileHandler(
+        os.path.join(_log_dir(), "passxmp.log"),
+        maxBytes=_MAX_BYTES,
+        backupCount=_BACKUP_COUNT,
+    )
     handler.setFormatter(logging.Formatter(
         "%(asctime)s [%(levelname)s] %(name)s: %(message)s"
     ))
