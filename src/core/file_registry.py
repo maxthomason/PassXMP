@@ -59,6 +59,7 @@ class FileRegistry(QObject):
     row_changed = pyqtSignal(int)
     row_inserted = pyqtSignal(int)
     row_removed = pyqtSignal(int)
+    scan_error = pyqtSignal(str)  # emitted when rescan can't read lr_root
 
     def __init__(self) -> None:
         super().__init__()
@@ -68,12 +69,28 @@ class FileRegistry(QObject):
         self._failed: set[str] = set()
         self._lr_root: str = ""
         self._dv_root: str = ""
+        self._last_scan_error: str = ""
 
     # ----- scanning -----
 
     def rescan(self, lr_root: str, dv_root: str) -> None:
         self._lr_root = lr_root
         self._dv_root = dv_root
+        self._last_scan_error = ""
+
+        if lr_root and not os.path.isdir(lr_root):
+            self._last_scan_error = f"Lightroom folder not found: {lr_root}"
+        elif lr_root and not os.access(lr_root, os.R_OK):
+            self._last_scan_error = f"Lightroom folder is not readable: {lr_root}"
+
+        if self._last_scan_error:
+            self._rows = []
+            self._index = {}
+            self._failed.clear()
+            self.rows_reset.emit()
+            self.scan_error.emit(self._last_scan_error)
+            return
+
         rows: list[FileState] = []
         for dirpath, _dn, filenames in os.walk(lr_root):
             for fn in filenames:
@@ -98,6 +115,10 @@ class FileRegistry(QObject):
         self._index = {r.xmp_path: i for i, r in enumerate(rows)}
         self._failed.clear()  # stale errors don't survive a rescan
         self.rows_reset.emit()
+
+    def last_scan_error(self) -> str:
+        """Return the last rescan error message, or empty if the scan succeeded."""
+        return self._last_scan_error
 
     # ----- queries -----
 

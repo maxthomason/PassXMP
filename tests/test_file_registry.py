@@ -240,3 +240,20 @@ def test_mark_done_after_delete_does_not_leak_failed():
         # Internal: _failed must not contain the deleted path
         assert xmp not in registry._failed
         assert registry.row_count() == 0
+
+
+def test_rescan_reports_missing_folder():
+    registry = FileRegistry()
+    registry.rescan("/this/path/does/not/exist/hopefully", "/tmp")
+    assert registry.row_count() == 0
+    assert "not found" in registry.last_scan_error()
+
+
+def test_rescan_clears_error_on_next_good_scan():
+    with tempfile.TemporaryDirectory() as lr, tempfile.TemporaryDirectory() as dv:
+        registry = FileRegistry()
+        registry.rescan("/bogus/missing/path", dv)
+        assert registry.last_scan_error()
+
+        registry.rescan(lr, dv)
+        assert registry.last_scan_error() == ""

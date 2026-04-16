@@ -274,9 +274,15 @@ class PresetsView(QWidget):
         return self._empty_label.text()
 
     def _refresh_empty_state(self) -> None:
+        scan_err = self._registry.last_scan_error()
         if not self._folders_configured:
             self._empty_label.setText(
                 "Choose a Lightroom folder in Settings to get started."
+            )
+            self._table_stack.setCurrentIndex(1)
+        elif scan_err:
+            self._empty_label.setText(
+                f"{scan_err}\n\nOpen Settings to pick another folder."
             )
             self._table_stack.setCurrentIndex(1)
         elif self._registry.row_count() == 0:
