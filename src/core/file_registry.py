@@ -144,3 +144,90 @@ class FileRegistry(QObject):
         idx = self._index.get(xmp_path)
         if idx is not None:
             self.row_changed.emit(idx)
+
+    # ----- selection -----
+
+    def set_selected(self, xmp_path: str, value: bool) -> None:
+        idx = self._index.get(xmp_path)
+        if idx is None:
+            return
+        if self._rows[idx].selected == value:
+            return
+        self._rows[idx].selected = value
+        self.row_changed.emit(idx)
+
+    def select_defaults(self) -> None:
+        """Check every row whose derived status is pending or failed."""
+        for row in self._rows:
+            status = derive_status(row, self._in_flight, self._failed)
+            target = status in ("pending", "failed")
+            if row.selected != target:
+                row.selected = target
+        self.rows_reset.emit()
+
+    def restore_selection(self, relative_paths: list[str]) -> None:
+        targets = set(relative_paths)
+        for row in self._rows:
+            rel = os.path.relpath(row.xmp_path, self._lr_root) if self._lr_root else row.xmp_path
+            row.selected = rel in targets
+        self.rows_reset.emit()
+
+    def selected_relative_paths(self) -> list[str]:
+        out: list[str] = []
+        for row in self._rows:
+            if not row.selected:
+                continue
+            rel = os.path.relpath(row.xmp_path, self._lr_root) if self._lr_root else row.xmp_path
+            out.append(rel)
+        return out
+
+    def selected_rows(self) -> list[FileState]:
+        return [r for r in self._rows if r.selected]
+
+    # ----- watcher integration -----
+
+    def on_watcher_created(self, xmp_path: str) -> None:
+        if xmp_path in self._index or not self._lr_root:
+            return
+        cube = get_mirror_path(xmp_path, self._lr_root, self._dv_root)
+        try:
+            xmtime = os.path.getmtime(xmp_path)
+        except OSError:
+            return
+        cmtime = os.path.getmtime(cube) if os.path.exists(cube) else None
+        state = FileState(
+            xmp_path=xmp_path,
+            cube_path=cube,
+            folder=_top_folder(xmp_path, self._lr_root),
+            xmp_mtime=xmtime,
+            cube_mtime=cmtime,
+        )
+        idx = len(self._rows)
+        self._rows.append(state)
+        self._index[xmp_path] = idx
+        self.row_inserted.emit(idx)
+
+    def on_watcher_modified(self, xmp_path: str) -> None:
+        idx = self._index.get(xmp_path)
+        if idx is None:
+            return
+        row = self._rows[idx]
+        try:
+            row.xmp_mtime = os.path.getmtime(xmp_path)
+        except OSError:
+            return
+        if os.path.exists(row.cube_path):
+            row.cube_mtime = os.path.getmtime(row.cube_path)
+        self._failed.discard(xmp_path)
+        self.row_changed.emit(idx)
+
+    def on_watcher_deleted(self, xmp_path: str) -> None:
+        idx = self._index.pop(xmp_path, None)
+        if idx is None:
+            return
+        self._rows.pop(idx)
+        for i in range(idx, len(self._rows)):
+            self._index[self._rows[i].xmp_path] = i
+        self._in_flight.discard(xmp_path)
+        self._failed.discard(xmp_path)
+        self.row_removed.emit(idx)

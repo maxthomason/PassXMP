@@ -139,3 +139,87 @@ def test_registry_status_reflects_in_flight_set():
 
         registry.mark_syncing(xmp)
         assert registry.status(xmp) == "syncing"
+
+
+def test_registry_set_selected_updates_row():
+    with tempfile.TemporaryDirectory() as lr, tempfile.TemporaryDirectory() as dv:
+        _touch(os.path.join(lr, "a.xmp"), mtime=1000.0)
+        registry = FileRegistry()
+        registry.rescan(lr, dv)
+
+        xmp = registry.rows()[0].xmp_path
+        registry.set_selected(xmp, True)
+        assert registry.rows()[0].selected is True
+
+        registry.set_selected(xmp, False)
+        assert registry.rows()[0].selected is False
+
+
+def test_registry_select_defaults_checks_pending_and_failed():
+    with tempfile.TemporaryDirectory() as lr, tempfile.TemporaryDirectory() as dv:
+        _touch(os.path.join(lr, "pending.xmp"), mtime=1000.0)
+        _touch(os.path.join(lr, "synced.xmp"), mtime=1000.0)
+        _touch(os.path.join(dv, "synced.cube"), mtime=2000.0)
+
+        registry = FileRegistry()
+        registry.rescan(lr, dv)
+        registry.select_defaults()
+
+        by_name = {os.path.basename(r.xmp_path): r for r in registry.rows()}
+        assert by_name["pending.xmp"].selected is True
+        assert by_name["synced.xmp"].selected is False
+
+
+def test_registry_selected_paths_round_trip():
+    with tempfile.TemporaryDirectory() as lr, tempfile.TemporaryDirectory() as dv:
+        _touch(os.path.join(lr, "a.xmp"), mtime=1000.0)
+        _touch(os.path.join(lr, "b.xmp"), mtime=1000.0)
+        registry = FileRegistry()
+        registry.rescan(lr, dv)
+
+        registry.restore_selection(["a.xmp"])
+        by_name = {os.path.basename(r.xmp_path): r for r in registry.rows()}
+        assert by_name["a.xmp"].selected is True
+        assert by_name["b.xmp"].selected is False
+
+        assert registry.selected_relative_paths() == ["a.xmp"]
+
+
+def test_registry_on_watcher_created_inserts_row():
+    with tempfile.TemporaryDirectory() as lr, tempfile.TemporaryDirectory() as dv:
+        registry = FileRegistry()
+        registry.rescan(lr, dv)
+        assert registry.row_count() == 0
+
+        new_xmp = os.path.join(lr, "new.xmp")
+        _touch(new_xmp, mtime=1000.0)
+        registry.on_watcher_created(new_xmp)
+
+        assert registry.row_count() == 1
+        assert registry.index_of(new_xmp) == 0
+
+
+def test_registry_on_watcher_deleted_removes_row():
+    with tempfile.TemporaryDirectory() as lr, tempfile.TemporaryDirectory() as dv:
+        xmp = os.path.join(lr, "a.xmp")
+        _touch(xmp, mtime=1000.0)
+        registry = FileRegistry()
+        registry.rescan(lr, dv)
+
+        registry.on_watcher_deleted(xmp)
+        assert registry.row_count() == 0
+        assert registry.index_of(xmp) is None
+
+
+def test_registry_on_watcher_modified_refreshes_mtimes():
+    with tempfile.TemporaryDirectory() as lr, tempfile.TemporaryDirectory() as dv:
+        xmp = os.path.join(lr, "a.xmp")
+        _touch(xmp, mtime=1000.0)
+        registry = FileRegistry()
+        registry.rescan(lr, dv)
+        assert registry.rows()[0].xmp_mtime == 1000.0
+
+        os.utime(xmp, (3000.0, 3000.0))
+        registry.on_watcher_modified(xmp)
+
+        assert registry.rows()[0].xmp_mtime == 3000.0
