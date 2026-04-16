@@ -118,3 +118,42 @@ def test_empty_state_hidden_when_rows_exist(qapp):
         view = PresetsView(reg)
         view.set_folders_configured(True)
         assert view.empty_state_visible() is False
+
+
+def test_context_menu_actions_for_synced_row(qapp):
+    with tempfile.TemporaryDirectory() as lr, tempfile.TemporaryDirectory() as dv:
+        _touch(os.path.join(lr, "a.xmp"), mtime=1000.0)
+        _touch(os.path.join(dv, "a.cube"), mtime=2000.0)
+        reg = FileRegistry()
+        reg.rescan(lr, dv)
+        view = PresetsView(reg)
+        actions = [a.text() for a in view.context_menu_actions_for_row(0)]
+        assert "Reveal .xmp in Finder" in actions
+        assert "Reveal .cube in Finder" in actions
+        assert "Resync this file" in actions
+
+
+def test_context_menu_actions_for_failed_row(qapp):
+    with tempfile.TemporaryDirectory() as lr, tempfile.TemporaryDirectory() as dv:
+        _touch(os.path.join(lr, "a.xmp"), mtime=1000.0)
+        reg = FileRegistry()
+        reg.rescan(lr, dv)
+        reg.mark_done(reg.rows()[0].xmp_path, ok=False, err="boom")
+        view = PresetsView(reg)
+        actions = [a.text() for a in view.context_menu_actions_for_row(0)]
+        assert "Retry" in actions
+        assert "Copy error message" in actions
+        assert "Reveal .xmp in Finder" in actions
+
+
+def test_context_menu_actions_for_pending_row(qapp):
+    with tempfile.TemporaryDirectory() as lr, tempfile.TemporaryDirectory() as dv:
+        _touch(os.path.join(lr, "a.xmp"), mtime=1000.0)
+        reg = FileRegistry()
+        reg.rescan(lr, dv)
+        view = PresetsView(reg)
+        actions = [a.text() for a in view.context_menu_actions_for_row(0)]
+        assert "Reveal .xmp in Finder" in actions
+        # Pending rows get only reveal; no resync/retry etc
+        assert "Retry" not in actions
+        assert "Resync this file" not in actions

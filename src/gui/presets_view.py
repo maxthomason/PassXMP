@@ -4,7 +4,9 @@ import os
 
 from PyQt6.QtCore import (
     Qt, QAbstractTableModel, QModelIndex, QSortFilterProxyModel, pyqtSignal,
+    QProcess,
 )
+from PyQt6.QtGui import QAction, QGuiApplication
 from PyQt6.QtWidgets import (
     QWidget, QVBoxLayout, QHBoxLayout, QLabel, QLineEdit, QTableView,
     QHeaderView, QAbstractItemView, QStackedWidget,
@@ -207,6 +209,10 @@ class PresetsView(QWidget):
         self._table_stack.addWidget(self._empty_label)  # index 1
 
         self._folders_configured = True
+
+        self._table.setContextMenuPolicy(Qt.ContextMenuPolicy.CustomContextMenu)
+        self._table.customContextMenuRequested.connect(self._on_context_menu)
+
         return self._table_stack
 
     # ----- footer -----
@@ -287,3 +293,54 @@ class PresetsView(QWidget):
         selected = sum(1 for r in self._registry.rows() if r.selected)
         self._footer.set_selection_count(selected)
         self._refresh_empty_state()
+
+    # ----- context menu -----
+
+    def context_menu_actions_for_row(self, proxy_row: int) -> list:
+        src = self._proxy.mapToSource(self._proxy.index(proxy_row, 0))
+        row = self._registry.row_at(src.row())
+        status = self._registry.status(row.xmp_path)
+
+        actions: list[QAction] = []
+
+        reveal_xmp = QAction("Reveal .xmp in Finder", self)
+        reveal_xmp.triggered.connect(lambda: self._reveal(row.xmp_path))
+        actions.append(reveal_xmp)
+
+        if status == "synced":
+            reveal_cube = QAction("Reveal .cube in Finder", self)
+            reveal_cube.triggered.connect(lambda: self._reveal(row.cube_path))
+            actions.append(reveal_cube)
+
+            resync = QAction("Resync this file", self)
+            resync.triggered.connect(lambda: self.sync_requested.emit([row]))
+            actions.append(resync)
+
+        if status == "failed":
+            retry = QAction("Retry", self)
+            retry.triggered.connect(lambda: self.sync_requested.emit([row]))
+            actions.append(retry)
+
+            copy_err = QAction("Copy error message", self)
+            copy_err.triggered.connect(
+                lambda: QGuiApplication.clipboard().setText(row.last_error or "")
+            )
+            actions.append(copy_err)
+
+        return actions
+
+    def _reveal(self, path: str) -> None:
+        QProcess.startDetached("open", ["-R", path])
+
+    def _on_context_menu(self, pos) -> None:
+        from PyQt6.QtWidgets import QMenu
+        idx = self._table.indexAt(pos)
+        if not idx.isValid():
+            return
+        actions = self.context_menu_actions_for_row(idx.row())
+        if not actions:
+            return
+        menu = QMenu(self)
+        for a in actions:
+            menu.addAction(a)
+        menu.exec(self._table.viewport().mapToGlobal(pos))
