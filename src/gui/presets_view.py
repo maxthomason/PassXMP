@@ -155,7 +155,7 @@ class PresetsView(QWidget):
     def _build_topbar(self) -> QWidget:
         w = QWidget()
         w.setStyleSheet(
-            "QWidget { background: palette(alternate-base); }"
+            "QWidget { background: transparent; border-bottom: 1px solid palette(mid); }"
         )
         row = QHBoxLayout(w)
         row.setContentsMargins(14, 10, 14, 10)

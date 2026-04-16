@@ -17,7 +17,7 @@ _SECTION_STYLE = (
 )
 _PATH_STYLE = (
     "color: palette(text); font-family: ui-monospace, SFMono-Regular, Menlo, monospace; "
-    "font-size: 11.5px; background: palette(alternate-base);"
+    "font-size: 11.5px;"
 )
 
 

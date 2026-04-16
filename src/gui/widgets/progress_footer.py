@@ -31,7 +31,11 @@ class ProgressFooter(QWidget):
         outer = QVBoxLayout(self)
         outer.setContentsMargins(0, 0, 0, 0)
         outer.addWidget(self._stack)
+        self.setContentsMargins(0, 0, 0, 0)
         self._stack.setCurrentIndex(0)
+        self.setStyleSheet(
+            "ProgressFooter { border-top: 1px solid palette(mid); }"
+        )
 
     # ----- idle -----
 
