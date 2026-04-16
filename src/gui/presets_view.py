@@ -7,7 +7,7 @@ from PyQt6.QtCore import (
 )
 from PyQt6.QtWidgets import (
     QWidget, QVBoxLayout, QHBoxLayout, QLabel, QLineEdit, QTableView,
-    QHeaderView, QAbstractItemView,
+    QHeaderView, QAbstractItemView, QStackedWidget,
 )
 
 from ..core.file_registry import FileRegistry, derive_status
@@ -148,6 +148,7 @@ class PresetsView(QWidget):
         registry.row_inserted.connect(lambda _i: self._refresh_summary())
         registry.row_removed.connect(lambda _i: self._refresh_summary())
         self._refresh_summary()
+        self._refresh_empty_state()
 
     # ----- topbar -----
 
@@ -183,7 +184,6 @@ class PresetsView(QWidget):
         self._table.verticalHeader().setVisible(False)
         self._table.horizontalHeader().setHighlightSections(False)
         self._table.setHorizontalScrollBarPolicy(Qt.ScrollBarPolicy.ScrollBarAlwaysOff)
-
         hdr = self._table.horizontalHeader()
         hdr.setSectionResizeMode(COL_CHECK, QHeaderView.ResizeMode.Fixed)
         self._table.setColumnWidth(COL_CHECK, 28)
@@ -191,7 +191,18 @@ class PresetsView(QWidget):
         hdr.setSectionResizeMode(COL_FOLDER, QHeaderView.ResizeMode.ResizeToContents)
         hdr.setSectionResizeMode(COL_STATUS, QHeaderView.ResizeMode.Fixed)
         self._table.setColumnWidth(COL_STATUS, 36)
-        return self._table
+
+        self._empty_label = QLabel("")
+        self._empty_label.setAlignment(Qt.AlignmentFlag.AlignCenter)
+        self._empty_label.setStyleSheet("color: #8e8e93; font-size: 13px; padding: 40px;")
+        self._empty_label.setWordWrap(True)
+
+        self._table_stack = QStackedWidget()
+        self._table_stack.addWidget(self._table)        # index 0
+        self._table_stack.addWidget(self._empty_label)  # index 1
+
+        self._folders_configured = True
+        return self._table_stack
 
     # ----- footer -----
 
@@ -239,7 +250,35 @@ class PresetsView(QWidget):
     def _on_sync_clicked(self) -> None:
         self.sync_requested.emit(self._registry.selected_rows())
 
+    # ----- empty state -----
+
+    def set_folders_configured(self, ok: bool) -> None:
+        self._folders_configured = ok
+        self._refresh_empty_state()
+
+    def empty_state_visible(self) -> bool:
+        return self._table_stack.currentIndex() == 1
+
+    def empty_state_text(self) -> str:
+        return self._empty_label.text()
+
+    def _refresh_empty_state(self) -> None:
+        if not self._folders_configured:
+            self._empty_label.setText(
+                "Choose a Lightroom folder in Settings to get started."
+            )
+            self._table_stack.setCurrentIndex(1)
+        elif self._registry.row_count() == 0:
+            self._empty_label.setText(
+                "No Lightroom presets found in this folder yet.\n"
+                "Create one in Lightroom and it will show up here."
+            )
+            self._table_stack.setCurrentIndex(1)
+        else:
+            self._table_stack.setCurrentIndex(0)
+
     def _refresh_summary(self) -> None:
         self._summary.setText(self.summary_text())
         selected = sum(1 for r in self._registry.rows() if r.selected)
         self._footer.set_selection_count(selected)
+        self._refresh_empty_state()

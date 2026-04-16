@@ -90,3 +90,31 @@ def test_presets_view_summary_label(qapp):
         reg.set_selected(reg.rows()[0].xmp_path, True)
         assert "2 presets" in view.summary_text()
         assert "1 selected" in view.summary_text()
+
+
+def test_empty_state_no_folders(qapp):
+    reg = FileRegistry()
+    view = PresetsView(reg)
+    view.set_folders_configured(False)
+    assert view.empty_state_visible() is True
+    assert "Settings" in view.empty_state_text()
+
+
+def test_empty_state_no_xmp_found(qapp):
+    with tempfile.TemporaryDirectory() as lr, tempfile.TemporaryDirectory() as dv:
+        reg = FileRegistry()
+        reg.rescan(lr, dv)
+        view = PresetsView(reg)
+        view.set_folders_configured(True)
+        assert view.empty_state_visible() is True
+        assert "No Lightroom presets" in view.empty_state_text()
+
+
+def test_empty_state_hidden_when_rows_exist(qapp):
+    with tempfile.TemporaryDirectory() as lr, tempfile.TemporaryDirectory() as dv:
+        _touch(os.path.join(lr, "a.xmp"), mtime=1000.0)
+        reg = FileRegistry()
+        reg.rescan(lr, dv)
+        view = PresetsView(reg)
+        view.set_folders_configured(True)
+        assert view.empty_state_visible() is False
